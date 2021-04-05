@@ -1,0 +1,392 @@
+---
+  title: "Breast Cancer Coimbra"
+author: "Lucas Okimi, Olaleye Bakare, Angela Adjei-Mosi"
+date: "11/7/2020"
+output:
+  word_document: default
+html_document: default
+---
+  
+  
+  
+  
+  ```{r }
+
+#Reading the data
+cancer <-read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/00451/dataR2.csv")
+
+#display the first 6 rows of the data
+round(head(cancer), 2)
+
+#Checking the dimension of the data
+dim(cancer)
+
+#Determining the correlation of the first seven variables rounded to 2 decimal
+corr = cor(cancer[, 1:7])
+round(corr, 2)
+
+```
+
+```{r}
+#Visualizing the pairs scatter plot of the data
+plot(cancer)
+
+#Visualizing the first 7 variables
+plot(cancer[, 1:7], col = c("red", "blue"), pch = 24)
+```
+
+```{r}
+#creating boxplot
+boxplot(cancer, xlab = "x axis", ylab = "y axis", main = "Boxplot of Cancer", col = 2, cex = 0.6)
+```
+
+```{r}
+#cancer<- as.numeric(cancer)
+#hist(cancer, main = "Histogram of ....", xlab = "x label", xlim = c(50,100),col = "pink", freq = FALSE)
+#hist(cancer$age)
+qplot(cancer, data = cancer, geom = "histogram")
+```
+
+
+
+```{r}
+#Visualising the mahalanobis Chi-square plot for normality
+
+library(MVA)
+
+cancer1 = cancer[, 1:9]
+xbar <- colMeans(cancer1)
+S <- cov(cancer1)
+d2 <- mahalanobis(cancer1, xbar, S)
+
+# Chi-Square plot:
+
+quantiles <- qchisq((1:nrow(cancer1) - 1/2) / nrow(cancer1), df = ncol(cancer1))
+sd2 <- sort(d2)
+
+# You can do the plot using
+plot(quantiles, sd2,
+     xlab = expression(paste(chi[3]^2, "Quantile")),
+     ylab = "ordered squared distances")
+abline(a=0, b=1) #a 45 degree angle
+
+```
+
+```{r}
+# plot one of the pair variables to detect any outlier 
+plot(Age ~ BMI, data = cancer1, cex.lab = 0.7, xlab = "Age", ylab = "BMI") 
+# adds text to plot 
+text(Age ~ BMI, data = cancer1, labels=(colnames(cancer1)), cex = 0.6, col = cancer$Classification )
+x <- cancer1[, c("Age", "BMI")] 
+library(MVA) 
+bvbox(x, add = T)
+
+#There is no outlier detectable
+```
+**Principal Component Analysis**
+  ```{r}
+
+#To find principal components of the standardized data
+cancer1.pca <- princomp(cancer1, cor = T) 
+
+summary(cancer1.pca, loading = T) 
+print(cancer1.pca$loadings, cut = 0.3)
+
+score <- cancer1.pca$score 
+head(score)
+
+#The first 4 components explained 76.2% of the data
+
+
+# Looking at the pc1  
+head(pc1 <- cancer1.pca$score[,1])
+pc1[1]
+
+biplot(cancer1.pca, col=c("black", "red"), cex = 0.6)
+
+
+#There was highest variation in the HOMA data. This is understandable since the data is derived from both healthy volunteer and breast cancer patient. This also apply to the BMI.
+#The BMI and Adiponectin are not correlated. This is understandable, because, the lesser the adiponectin present in a person, the higher the tendency to accumulate fat, which will lead to increase in BMI.
+#With negative correlation between Resistin(promotes growth of cells) and adiponectin, the indicates that if adiponectin decreases in person with high resistin, there is high tendency to develop cancer.
+#If MCP is high,being a receptor of chemical, it encourages creation of wild cells and it induced various deceases. It has negative correlation with adiponectin which breakdown protein and fat.
+
+# The high correlation between glucose and insulin is an evidence that, a normal body tend to produce more insulin with the increase in glucose presence in the body.
+#Since HOMA is a derivative of glucose and insulin, it is therefore correlated to the the two.
+
+```
+
+**Multidimensional scaling**
+  ```{r}
+options(digits = 3)
+#The dist(cancer1) first convert the data to Euclidean distances
+d = dist(cancer1)
+
+#Scaling the data
+cmd = cmdscale(d)
+cmd # this gives 2D like X and Y coordinates
+plot(cmd)
+
+cmdscale(dist(cancer1), k= 5, eig = T) # K is the number of coordinates instead of the default 2D
+
+# Comparing results with the principle component scores using cov matrix:
+princomp(cancer1)$scores
+
+#The result is thesame. This shows another way to represent the data.
+#After about the first 9 eignen values, remaining ones is very cose to 0.
+
+
+```
+
+
+```{r}
+plot(cmdscale(dist(cancer1)), xlab = "coordinate 1", ylab = "coordinate 2")
+text(cmdscale(dist(cancer1)), labels=(colnames(cancer1)), cex = 0.6,col = cancer$Classification)
+```
+
+```{r}
+# 2d representation 
+cmd2 <- cmdscale(dist(cancer1), k=2)
+dist(cmd2[1:9])
+dist(cancer1[(1:9),])
+# comparing this with original dist matrix.
+# There are some errors because 2 dimension cannot fully explain the data.
+
+```
+
+**Exploratory factor Analysis**
+  
+  ```{r}
+#The null hypothesis is that k factors is sufficient for presenting the data
+cancer1.fa <- factanal(cancer1, factors = 5) # 5 is the max number of factor this data with 9 variables can accept.
+cancer1.fa
+# Since p-value < 0.05 for k = 5
+
+## The null hypothesis is that k factors are sufficient for presenting the data. Let us assume k=5 factors are sufficient.
+# Though p-value < 0.05 for k = 5,which will reject the null hypothesis. It is arguable that p-value may not be reliable in determining the validity of a model. 
+# There is a serious debate between statisticians in terms of whether to rely on p-value or not. E.g., since in this data the sample size is large, any small discrepancies between the estimated correlation matrix (corhat) and the original correlation matrix will be detected as significant, and the chance of rejection (p-value<0.05) is very high. (B.Everitt et.al.2011)
+##REMOVE TO REFERENCE PAGE  *B. Everitt & T. Hothorn, An Introduction to Applied Multivariate Analysis with R: Use R! 2011*
+cancer1.fa$loadings
+#the low uniqueness of Insulin, HOMA, Leptin, Adiponectin and MCP.1 shows that high percentage of the data can be explained by the 5 factors but will be more difficult to resolve for Age
+
+
+
+
+```
+
+To check the quality of the model, we check the RMSE
+```{r}
+f.loading = cancer1.fa$loadings[, 1:5]
+
+corHat = f.loading %*% t(f.loading) + diag(cancer1.fa$uniquenesses)
+corr = cor(cancer1)
+
+# discrepancy, the root-mean-square error (RMSE)
+rmse = sqrt(mean((corHat-corr)^2))
+rmse
+#Less than 2% discrepancy is good for the validity of the data
+```
+
+```{r}
+# Focussing on the loading of the first 5 factors.
+cancer1.fa$loadings
+# Dropping off some of the loadings below a certain level for easier interpretation.
+print(cancer1.fa$loadings, cut = 0.25)
+```
+Factor1: This can be named as body glucose level determinant
+Factor 2: Named Body Energy level
+Factor 3: Cell growth and physiology regulator
+Factor 4: Protein and fat regulator
+Factpor5: Aging factor
+
+
+**Adding rotation to the factor analysis**
+  
+  ```{r}
+# Factor analysis without rotation 
+faNR <- factanal(cancer1, factors = 5, rotation = "none") 
+faLNR <- faNR$loadings[,1:5] #this is loading matrix
+faLNR
+#getting variance for f1, f2, f3, f4 and f5
+varLNR = var(faLNR[,1]^2) + var(faLNR[,2]^2) + var(faLNR[,3]^2)+var(faLNR[,4]^2) + var(faLNR[,5]^2) 
+varLNR
+
+# Factor analysis with rotation (by default, the varimax rotation) 
+faR <- factanal(cancer1, factors = 5) 
+faLR <- faR$loadings[,1:5] 
+faLR
+print(faR$loadings[,1:5], cut = 0.3)
+# Varimax rotation maximizes the sum squared variance of loadings. 
+varLR = var(faLR[,1]^2) + var(faLR[,2]^2) + var(faLR[,3]^2)+var(faLNR[,4]^2) + var(faLNR[,5]^2) 
+varLR
+
+#The varimax rotation of 0.376 is bigger than the one without rotation of 0.304 because it is maximized.
+
+
+```
+The factor loadings are the approximate correlations of the manifest variables and the factors.
+This shows a lot of correlation between the principal component and the factors.
+
+**Hierachial Cluster Analysis**
+  ```{r}
+cancer1.s = scale(cancer1)
+cancer1.d = dist(cancer1.s)
+
+
+#Using complete linkage
+hc1 <- hclust(cancer1.d, "complete") 
+plot(hc1, main = "Complete Linkage HC Dendogram")
+
+#Using single linkage
+hc2 <- hclust(cancer1.d, "single") 
+plot(hc2, main = "Single Linkage HC Dendogram")
+
+
+#Using average linkage
+hc3 <- hclust(cancer1.d, "average")
+plot(hc3, main = "Average Linkage HC Dendogram")
+
+#The "complete linkage" looks like the better linkage and it is showing about 5 possible grouping.
+
+## checking the height of each observation in the dendrogram.
+hc1$height
+
+
+```
+
+**Determining the number of clusters**
+  ```{r}
+# hc1 is the hierarchical clustering object of the cancer data. hc1 contains following information.
+names(hc1)
+
+plot((rev(hc1$height)),xlab="Number of Clusters",
+     ylab="Within groups sum of squares",type = "b", main="Scree Plot")
+
+# Using the drop up point, the number of clusters is 4
+
+```
+The number of clusters will be 4.
+
+```{r}
+# Getting the 4 clusters solution?
+cancer1.ct <- cutree(hc1, 4)
+cancer1.ct
+cancer1.clust <- data.frame(cancer1.ct)
+cancer1.clust
+#Above tells which cluster is in which row. 
+
+
+```
+
+
+
+```{r}
+#summarizing the clustering information using the table of counts.
+table(cancer1.ct) #This gives how many items in each cluster
+
+# finding the content of each group
+cancer1.s = scale(cancer1)
+
+# Then by looking at the average z-score value of the group data, we can find a meaning for that group. 
+cluster1 = subset(rownames(cancer1), cancer1.ct==1) 
+index1 = match(cluster1, rownames(cancer1))
+colMeans(cancer1.s[index1, ])
+
+cluster2 = subset(rownames(cancer1),cancer1.ct==2) 
+index2 = match(cluster2, rownames(cancer1)) 
+colMeans(cancer1.s[index2, ])
+
+
+cluster3 = subset(rownames(cancer1), cancer1.ct==3) 
+index3 = match(cluster3, rownames(cancer1))
+colMeans(cancer1.s[index3, ])
+
+cluster4 = subset(rownames(cancer1), cancer1.ct==4) 
+index4 = match(cluster4, rownames(cancer1)) 
+colMeans(cancer1.s[index4, ])
+
+```
+
+**K-Means Cluster**
+  
+  ```{r}
+set.seed(123)
+#Identifying the appropriate number of cluster for the k-Means
+
+plot.wgss = function(cancer1, maxc) {
+  wss = numeric(maxc)
+  for (i in 1:maxc) 
+    wss[i] = kmeans(cancer1,centers=i, nstart = 10)$tot.withinss 
+  plot(1:maxc, wss, type="b", xlab="Number of Clusters",
+       ylab="Within groups sum of squares", main="Scree Plot") 
+}
+
+#plotting the scree plot
+plot.wgss(cancer1, 20)
+
+#from the K-Means scree plot, the number of clusters is 4
+
+km <- kmeans(cancer1.s, centers = 4, nstart = 10)
+
+
+table(km$cluster, cancer$Classification)
+# We see that Mclust is more accurate.
+plot(cancer1, col = km$cluster, pch = km$cluster)
+
+km.cluster1 = subset(cancer1.s, km$cluster == 1)
+km.cluster1
+
+km.cluster2 = subset(cancer1.s, km$cluster == 2)
+km.cluster2
+
+km.cluster3 = subset(cancer1.s, km$cluster == 3)
+km.cluster3
+
+km.cluster4 = subset(cancer1.s, km$cluster == 4)
+km.cluster4
+
+```
+
+**Model- Based Clustering**
+  
+  ```{r}
+plot(cancer1) #the original plot does not show the clusters clearly
+library(mclust)
+# we have expected clusters; male and female. Mclust optimally recognizes that: 
+mc <- Mclust(cancer1) #number of cluster is not specified. Let the model-based algorithm choose the number. 
+#It find it to be 4 clusters 
+table(mc$classification, cancer$Classification)
+plot(mc, what = "classification") #There is a couple of overlaps, but it is evidence of 4 clusters
+
+# The number of clusters is based on maximum BIC 
+plot(mc, what = "BIC") # This shows 4 to have the highest BIC making 4 cluster to be the number of clusters needed.
+
+mc$modelName  #It is using VVE which assumed ellipsoidal distribution, equal volme, equal shape and variable orientation.
+
+# Find uncertain points, darker and larger points are more uncertain 
+
+plot(mc, what = "uncertainty")
+```
+
+**Comparing principal component using kmeans**
+  
+  ```{r}
+set.seed(123)
+pc1 <- cancer1.pca$score[,1]
+
+cancer1.pca$loadings[,1:5]
+plot(cancer1.pca$scores[, 1:2], col = km$cluster)
+text(cancer1.pca$scores[, 1:2], labels=(colnames(cancer1)), cex = 0.6, col = km$cluster)
+
+plot(cancer1.pca$scores[, 1:2], col = mc$cluster)
+text(cancer1.pca$scores[, 1:2], labels=(colnames(cancer1)), cex = 0.6, col = mc$classification)
+
+plot(mc, dimens = c(3,4),what = "uncertainty")
+text(mc$data[,c(3,4)], labels = abbreviate(colnames(cancer1.s)), cex = 0.6)
+
+#To determine which item with highest uncertainty
+clust.data <- cbind(colnames(cancer1), mc$uncertainty)
+clust.data[order(mc$uncertainty, decreasing = T),]
+
+#resistin has the highest uncertainty with about 36%
+```
+
